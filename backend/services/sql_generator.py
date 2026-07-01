@@ -1,4 +1,4 @@
-from models.schema import TableSchema
+from models.schema import TableSchema, SQLSchemaResponse
 
 def generate_create_table_sql(table: TableSchema) -> str:
     lines = []
@@ -16,7 +16,7 @@ def generate_inserts_sql(table: TableSchema) -> str:
         return ""
     return "\n".join(table.seed_inserts)
 
-def populate_sql_statements(schema_response: any) -> any:
+def populate_sql_statements(schema_response: SQLSchemaResponse) -> SQLSchemaResponse:
     for table in schema_response.tables:
         table.create_table_sql = generate_create_table_sql(table)
         table.inserts_sql = generate_inserts_sql(table)

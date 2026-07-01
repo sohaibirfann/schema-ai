@@ -5,13 +5,12 @@ from fastapi import HTTPException
 from models.schema import SQLSchemaResponse
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 async def generate_schema_from_ai(description: str) -> SQLSchemaResponse:
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
+    if not GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="GROQ_API_KEY is not configured")
-    
-    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     
     system_prompt = (
         "You are a database design expert. Generate a database schema based on the user's description. "
@@ -21,7 +20,7 @@ async def generate_schema_from_ai(description: str) -> SQLSchemaResponse:
     )
     
     payload = {
-        "model": model,
+        "model": GROQ_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": description}
@@ -31,7 +30,7 @@ async def generate_schema_from_ai(description: str) -> SQLSchemaResponse:
     }
     
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
     

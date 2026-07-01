@@ -29,7 +29,13 @@ interface HistoryEntry {
 
 const LS_KEY = "schemaai_history";
 
-// ponytail: no custom hook, just two helpers
+// ponytail: static, belongs outside the component
+const SAMPLE_PROMPTS = [
+  "E-commerce store with orders, items, inventory tracks and users.",
+  "Blog site with users, posts, categories, comments and tags.",
+  "Project board like Trello with boards, lists, cards, and member assignments.",
+];
+
 function readHistory(): HistoryEntry[] {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; }
 }
@@ -46,6 +52,97 @@ function relativeTime(id: number) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+// fallow-ignore-next-line complexity
+function HistoryDrawer({ open, history, activeId, onLoad, onDelete, onClear, onClose }: {
+  open: boolean;
+  history: HistoryEntry[];
+  activeId: number | null;
+  onLoad: (e: HistoryEntry) => void;
+  onDelete: (id: number, e: React.MouseEvent) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className={`fixed top-16 right-0 h-[calc(100vh-4rem)] w-80 bg-white border-l border-[#e5e5e5] shadow-xl z-40 flex flex-col transition-transform duration-200 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e5e5]">
+          <span className="text-xs font-semibold text-neutral-700 uppercase tracking-wider">Schema History</span>
+          {history.length > 0 && (
+            <button onClick={onClear} className="text-[11px] text-neutral-400 hover:text-red-500 transition-colors cursor-pointer">
+              Clear all
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-300"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <p className="text-xs text-neutral-400">Generated schemas will appear here.</p>
+            </div>
+          ) : (
+            <ul className="p-2 flex flex-col gap-1">
+              {history.map(entry => (
+                <li key={entry.id}>
+                  <div
+                    onClick={() => onLoad(entry)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && onLoad(entry)}
+                    className={`w-full text-left px-3 py-2.5 rounded-md transition-all group flex flex-col gap-1 border cursor-pointer ${activeId === entry.id ? "bg-[#5E6AD2]/5 border-[#5E6AD2]/20" : "bg-transparent border-transparent hover:bg-neutral-50"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className={`text-xs font-medium leading-snug line-clamp-2 flex-1 ${activeId === entry.id ? "text-[#5E6AD2]" : "text-neutral-700"}`}>
+                        {entry.prompt}
+                      </span>
+                      <button onClick={(e) => onDelete(entry.id, e)} className="opacity-0 group-hover:opacity-100 text-neutral-300 hover:text-red-400 transition-all shrink-0 mt-0.5 cursor-pointer" aria-label="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-neutral-400">
+                      <span>{relativeTime(entry.id)}</span>
+                      <span className="text-neutral-300">·</span>
+                      <span>{entry.response.tables.length} table{entry.response.tables.length !== 1 ? "s" : ""}</span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      {open && <div className="fixed inset-0 z-30 top-16" onClick={onClose} />}
+    </>
+  );
+}
+
+function SqlPanel({ label, sql, copyKey, copySuccess, onCopy, wrap }: {
+  label: string;
+  sql: string;
+  copyKey: string;
+  copySuccess: string | null;
+  onCopy: (key: string, text: string) => void;
+  wrap?: boolean;
+}) {
+  return (
+    <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
+      <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
+        <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">{label}</span>
+        <button
+          onClick={() => onCopy(copyKey, sql)}
+          className="text-[11px] font-medium text-neutral-500 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+        >
+          {copySuccess === copyKey ? "Copied!" : `Copy ${copyKey === "schema" ? "DDL" : "Seed SQL"}`}
+        </button>
+      </div>
+      <pre className={`bg-[#fafbfb] border border-[#e5e5e5] rounded-md p-4 font-mono text-xs text-neutral-600 overflow-x-auto ${wrap ? "whitespace-pre-wrap leading-relaxed" : "whitespace-pre"}`}>
+        {sql}
+      </pre>
+    </div>
+  );
+}
+
+// fallow-ignore-next-line complexity
 export default function GeneratorPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,12 +156,7 @@ export default function GeneratorPage() {
 
   useEffect(() => { setHistory(readHistory()); }, []);
 
-  const samplePrompts = [
-    "E-commerce store with orders, items, inventory tracks and users.",
-    "Blog site with users, posts, categories, comments and tags.",
-    "Project board like Trello with boards, lists, cards, and member assignments."
-  ];
-
+  // fallow-ignore-next-line complexity
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!description.trim()) return;
@@ -83,8 +175,8 @@ export default function GeneratorPage() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Server returned error status ${res.status}`);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server returned error status ${res.status}`);
       }
 
       const data: SQLSchemaResponse = await res.json();
@@ -119,6 +211,12 @@ export default function GeneratorPage() {
     if (activeId === id) setActiveId(null);
   }
 
+  function handleCopy(key: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopySuccess(key);
+    setTimeout(() => setCopySuccess(null), 2000);
+  }
+
   const selectedTable = response?.tables?.[selectedTableIndex];
 
   return (
@@ -138,11 +236,7 @@ export default function GeneratorPage() {
           <button
             id="history-toggle"
             onClick={() => setHistoryOpen(o => !o)}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md border transition-all cursor-pointer ${
-              historyOpen
-                ? "bg-[#111111] text-white border-[#111111]"
-                : "bg-white text-neutral-600 border-[#e5e5e5] hover:bg-neutral-50 hover:text-black"
-            }`}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md border transition-all cursor-pointer ${historyOpen ? "bg-[#111111] text-white border-[#111111]" : "bg-white text-neutral-600 border-[#e5e5e5] hover:bg-neutral-50 hover:text-black"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             History
@@ -155,56 +249,15 @@ export default function GeneratorPage() {
         </div>
       </header>
 
-      {/* History drawer */}
-      <div className={`fixed top-16 right-0 h-[calc(100vh-4rem)] w-80 bg-white border-l border-[#e5e5e5] shadow-xl z-40 flex flex-col transition-transform duration-200 ease-out ${historyOpen ? "translate-x-0" : "translate-x-full"}`}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e5e5]">
-          <span className="text-xs font-semibold text-neutral-700 uppercase tracking-wider">Schema History</span>
-          {history.length > 0 && (
-            <button onClick={() => { writeHistory([]); setHistory([]); setActiveId(null); }} className="text-[11px] text-neutral-400 hover:text-red-500 transition-colors cursor-pointer">
-              Clear all
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-300"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <p className="text-xs text-neutral-400">Generated schemas will appear here.</p>
-            </div>
-          ) : (
-            <ul className="p-2 flex flex-col gap-1">
-              {history.map(entry => (
-                <li key={entry.id}>
-                  <div
-                    onClick={() => loadEntry(entry)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && loadEntry(entry)}
-                    className={`w-full text-left px-3 py-2.5 rounded-md transition-all group flex flex-col gap-1 border cursor-pointer ${activeId === entry.id ? "bg-[#5E6AD2]/5 border-[#5E6AD2]/20" : "bg-transparent border-transparent hover:bg-neutral-50"}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={`text-xs font-medium leading-snug line-clamp-2 flex-1 ${activeId === entry.id ? "text-[#5E6AD2]" : "text-neutral-700"}`}>
-                        {entry.prompt}
-                      </span>
-                      <button onClick={(e) => deleteEntry(entry.id, e)} className="opacity-0 group-hover:opacity-100 text-neutral-300 hover:text-red-400 transition-all shrink-0 mt-0.5 cursor-pointer" aria-label="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-neutral-400">
-                      <span>{relativeTime(entry.id)}</span>
-                      <span className="text-neutral-300">·</span>
-                      <span>{entry.response.tables.length} table{entry.response.tables.length !== 1 ? "s" : ""}</span>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {historyOpen && <div className="fixed inset-0 z-30 top-16" onClick={() => setHistoryOpen(false)} />}
+      <HistoryDrawer
+        open={historyOpen}
+        history={history}
+        activeId={activeId}
+        onLoad={loadEntry}
+        onDelete={deleteEntry}
+        onClear={() => { writeHistory([]); setHistory([]); setActiveId(null); }}
+        onClose={() => setHistoryOpen(false)}
+      />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8 flex flex-col gap-6 relative z-10">
         <section className="flex flex-col gap-4 border border-[#e5e5e5] bg-white rounded-lg p-5 shadow-sm">
@@ -225,7 +278,7 @@ export default function GeneratorPage() {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex flex-wrap gap-2">
-                {samplePrompts.map((prompt, i) => (
+                {SAMPLE_PROMPTS.map((prompt, i) => (
                   <button
                     key={i}
                     type="button"
@@ -279,11 +332,7 @@ export default function GeneratorPage() {
                 <button
                   key={i}
                   onClick={() => setSelectedTableIndex(i)}
-                  className={`w-full text-left px-3 py-2 rounded-md text-xs font-sans transition-all flex items-center justify-between border ${
-                    selectedTableIndex === i
-                      ? "bg-[#5E6AD2]/5 text-[#5E6AD2] border-[#5E6AD2]/25 font-semibold"
-                      : "bg-transparent hover:bg-neutral-50 border-transparent text-neutral-500"
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-md text-xs font-sans transition-all flex items-center justify-between border ${selectedTableIndex === i ? "bg-[#5E6AD2]/5 text-[#5E6AD2] border-[#5E6AD2]/25 font-semibold" : "bg-transparent hover:bg-neutral-50 border-transparent text-neutral-500"}`}
                 >
                   <span className="truncate">{table.table_name}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${selectedTableIndex === i ? "bg-[#5E6AD2]/10 text-[#5E6AD2]" : "bg-[#f4f5f6] text-neutral-400"}`}>
@@ -333,37 +382,10 @@ export default function GeneratorPage() {
                 </div>
 
                 {selectedTable.create_table_sql && (
-                  <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
-                    <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
-                      <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Schema Query (DDL)</span>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(selectedTable.create_table_sql || ""); setCopySuccess("schema"); setTimeout(() => setCopySuccess(null), 2000); }}
-                        className="text-[11px] font-medium text-neutral-500 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                      >
-                        {copySuccess === "schema" ? "Copied!" : "Copy DDL"}
-                      </button>
-                    </div>
-                    <pre className="bg-[#fafbfb] border border-[#e5e5e5] rounded-md p-4 font-mono text-xs text-neutral-600 overflow-x-auto whitespace-pre">
-                      {selectedTable.create_table_sql}
-                    </pre>
-                  </div>
+                  <SqlPanel label="Schema Query (DDL)" sql={selectedTable.create_table_sql} copyKey="schema" copySuccess={copySuccess} onCopy={handleCopy} />
                 )}
-
                 {selectedTable.inserts_sql && (
-                  <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
-                    <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
-                      <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Seed Rows (DML)</span>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(selectedTable.inserts_sql || ""); setCopySuccess("inserts"); setTimeout(() => setCopySuccess(null), 2000); }}
-                        className="text-[11px] font-medium text-neutral-500 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                      >
-                        {copySuccess === "inserts" ? "Copied!" : "Copy Seed SQL"}
-                      </button>
-                    </div>
-                    <pre className="bg-[#fafbfb] border border-[#e5e5e5] rounded-md p-4 font-mono text-xs text-neutral-600 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                      {selectedTable.inserts_sql}
-                    </pre>
-                  </div>
+                  <SqlPanel label="Seed Rows (DML)" sql={selectedTable.inserts_sql} copyKey="inserts" copySuccess={copySuccess} onCopy={handleCopy} wrap />
                 )}
               </div>
             )}
