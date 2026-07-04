@@ -19,6 +19,8 @@ def generate_create_table_sql(table: TableSchema) -> str:
         col_line = f"    {col.name} {col.type}"
         if col.constraints:
             col_line += " " + " ".join(col.constraints)
+        if col.references:
+            col_line += f" REFERENCES {col.references.table}({col.references.column})"
         lines.append(col_line)
     
     columns_str = ",\n".join(lines)

@@ -1,9 +1,14 @@
 from pydantic import BaseModel, Field
 
+class Reference(BaseModel):
+    table: str = Field(description="Name of the referenced table")
+    column: str = Field(description="Name of the referenced column")
+
 class Column(BaseModel):
     name: str = Field(description="Name of the column")
     type: str = Field(description="SQL data type")
     constraints: list[str] = Field(default_factory=list, description="SQL constraints")
+    references: Reference | None = Field(default=None, description="Foreign key reference, if this column is a foreign key")
 
 class TableSchema(BaseModel):
     table_name: str = Field(description="Name of the table")

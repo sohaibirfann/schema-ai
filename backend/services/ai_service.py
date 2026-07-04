@@ -20,6 +20,7 @@ async def generate_schema_from_ai(description: str) -> SQLSchemaResponse:
         "You are a database design expert. Generate a database schema based on the user's description. "
         "You must respond with a JSON object that strictly adheres to this JSON schema:\n"
         f"{json.dumps(SQLSchemaResponse.model_json_schema())}\n"
+        "For any column that is a foreign key, set its `references` field to the referenced table and column name. "
         "Do not include any explanation, markdown formatting, or text outside the JSON object."
     )
     
