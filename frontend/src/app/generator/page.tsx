@@ -3,24 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { WakingUpNotice } from "@/components/WakingUpNotice";
-
-interface Column {
-  name: string;
-  type: string;
-  constraints: string[];
-}
-
-interface TableSchema {
-  table_name: string;
-  columns: Column[];
-  seed_inserts: string[];
-  create_table_sql: string | null;
-  inserts_sql: string | null;
-}
-
-interface SQLSchemaResponse {
-  tables: TableSchema[];
-}
+import { SchemaDiagram } from "@/components/SchemaDiagram";
+import type { SQLSchemaResponse } from "@/types/schema";
 
 interface HistoryEntry {
   id: number;
@@ -171,6 +155,7 @@ export default function GeneratorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [slowWake, setSlowWake] = useState(false);
+  const [view, setView] = useState<"tables" | "diagram">("tables");
 
   useEffect(() => {
     setHistory(readHistory());
@@ -353,6 +338,25 @@ export default function GeneratorPage() {
         )}
 
         {response && (
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-1 border border-[#e5e5e5] bg-white rounded-lg p-1 w-fit shadow-sm">
+              <button
+                onClick={() => setView("tables")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${view === "tables" ? "bg-[#111111] text-white" : "text-neutral-500 hover:text-black"}`}
+              >
+                Tables
+              </button>
+              <button
+                onClick={() => setView("diagram")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${view === "diagram" ? "bg-[#111111] text-white" : "text-neutral-500 hover:text-black"}`}
+              >
+                Diagram
+              </button>
+            </div>
+
+            {view === "diagram" ? (
+              <SchemaDiagram tables={response.tables} />
+            ) : (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="w-full lg:w-56 border border-[#e5e5e5] bg-white rounded-lg p-3 flex flex-col gap-1 shrink-0 shadow-sm">
               <span className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider px-2 pb-2 border-b border-[#e5e5e5] mb-1.5">Schema Tables</span>
@@ -416,6 +420,8 @@ export default function GeneratorPage() {
                   <SqlPanel label="Seed Rows (DML)" sql={selectedTable.inserts_sql} copyKey="inserts" copySuccess={copySuccess} onCopy={handleCopy} wrap filename={`${selectedTable.table_name}_seed.sql`} />
                 )}
               </div>
+            )}
+          </div>
             )}
           </div>
         )}
