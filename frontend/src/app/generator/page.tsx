@@ -170,7 +170,10 @@ export default function GeneratorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
-  useEffect(() => { setHistory(readHistory()); }, []);
+  useEffect(() => {
+    setHistory(readHistory());
+    fetch("/api/health").catch(() => {});
+  }, []);
 
   // fallow-ignore-next-line complexity
   async function handleGenerate(e: React.FormEvent) {

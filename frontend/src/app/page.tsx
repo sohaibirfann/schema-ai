@@ -1,6 +1,13 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 
 export default function LandingPage() {
+  useEffect(() => {
+    fetch("/api/health").catch(() => {});
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-[#F4F5F6] text-neutral-800 selection:bg-neutral-200 selection:text-black font-sans">
       {/* Soft Grid Lines */}
