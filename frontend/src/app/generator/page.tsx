@@ -4,8 +4,23 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { WakingUpNotice } from "@/components/WakingUpNotice";
 import { SchemaDiagram } from "@/components/SchemaDiagram";
+import { SqlHighlight } from "@/components/SqlHighlight";
 import type { SQLSchemaResponse, Dialect } from "@/types/schema";
 import { DIALECTS } from "@/types/schema";
+
+function downloadText(filename: string, content: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function buildFullSchemaSql(response: SQLSchemaResponse): string {
+  const ddl = response.tables.map(t => t.create_table_sql).filter(Boolean).join("\n\n");
+  const dml = response.tables.map(t => t.inserts_sql).filter(Boolean).join("\n\n");
+  return dml ? `${ddl}\n\n${dml}` : ddl;
+}
 
 interface HistoryEntry {
   id: number;
@@ -38,7 +53,6 @@ function relativeTime(id: number) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-// fallow-ignore-next-line complexity
 function HistoryDrawer({ open, history, activeId, onLoad, onDelete, onClear, onClose }: {
   open: boolean;
   history: HistoryEntry[];
@@ -63,7 +77,7 @@ function HistoryDrawer({ open, history, activeId, onLoad, onDelete, onClear, onC
         <div className="flex-1 overflow-y-auto">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-300"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-300"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               <p className="text-xs text-neutral-400">Generated schemas will appear here.</p>
             </div>
           ) : (
@@ -82,7 +96,7 @@ function HistoryDrawer({ open, history, activeId, onLoad, onDelete, onClear, onC
                         {entry.prompt}
                       </span>
                       <button onClick={(e) => onDelete(entry.id, e)} className="opacity-0 group-hover:opacity-100 text-neutral-300 hover:text-red-400 transition-all shrink-0 mt-0.5 cursor-pointer" aria-label="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                       </button>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-neutral-400">
@@ -117,21 +131,13 @@ function SqlPanel({ label, sql, copyKey, copySuccess, onCopy, wrap, filename }: 
   wrap?: boolean;
   filename: string;
 }) {
-  function download() {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([sql], { type: "text/plain" }));
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
   return (
     <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
       <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
         <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">{label}</span>
         <div className="flex items-center gap-2">
           <button
-            onClick={download}
+            onClick={() => downloadText(filename, sql)}
             className="text-[11px] font-medium text-neutral-500 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
           >
             Download
@@ -145,13 +151,12 @@ function SqlPanel({ label, sql, copyKey, copySuccess, onCopy, wrap, filename }: 
         </div>
       </div>
       <pre className={`bg-[#fafbfb] border border-[#e5e5e5] rounded-md p-4 font-mono text-xs text-neutral-600 overflow-x-auto ${wrap ? "whitespace-pre-wrap leading-relaxed" : "whitespace-pre"}`}>
-        {sql}
+        <SqlHighlight sql={sql} />
       </pre>
     </div>
   );
 }
 
-// fallow-ignore-next-line complexity
 export default function GeneratorPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -168,10 +173,9 @@ export default function GeneratorPage() {
 
   useEffect(() => {
     setHistory(readHistory());
-    fetch("/api/health").catch(() => {});
+    fetch("/api/health").catch(() => { });
   }, []);
 
-  // fallow-ignore-next-line complexity
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!description.trim()) return;
@@ -247,7 +251,7 @@ export default function GeneratorPage() {
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-neutral-500 hover:text-[#111111] transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
             </Link>
             <span className="w-5 h-5 rounded bg-[#111111] flex items-center justify-center font-bold text-white text-xs tracking-tighter">S</span>
             <span className="font-display font-semibold tracking-tight text-[#111111] text-sm">SchemaAI</span>
@@ -258,7 +262,7 @@ export default function GeneratorPage() {
             onClick={() => setHistoryOpen(o => !o)}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md border transition-all cursor-pointer ${historyOpen ? "bg-[#111111] text-white border-[#111111]" : "bg-white text-neutral-600 border-[#e5e5e5] hover:bg-neutral-50 hover:text-black"}`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
             History
             {history.length > 0 && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${historyOpen ? "bg-white/20 text-white" : "bg-[#5E6AD2]/10 text-[#5E6AD2]"}`}>
@@ -341,7 +345,7 @@ export default function GeneratorPage() {
 
         {error && (
           <div className="border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-xs font-sans flex items-start gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             <div className="flex flex-col gap-1">
               <span className="font-semibold uppercase tracking-wider">Compilation Error</span>
               <span>{error}</span>
@@ -352,7 +356,7 @@ export default function GeneratorPage() {
         {!response && !loading && !error && (
           <div className="border border-dashed border-[#e5e5e5] bg-white rounded-lg p-16 flex flex-col items-center justify-center text-center gap-4 shadow-sm">
             <div className="w-10 h-10 rounded-lg bg-[#F4F5F6] border border-[#e5e5e5] flex items-center justify-center text-neutral-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
             </div>
             <h3 className="font-display text-sm font-semibold text-neutral-700 uppercase tracking-tight">Console Empty</h3>
             <p className="font-sans text-xs text-neutral-400 max-w-sm leading-relaxed">
@@ -363,89 +367,98 @@ export default function GeneratorPage() {
 
         {response && (
           <div className="flex flex-col gap-4">
-            <div className="flex gap-1 border border-[#e5e5e5] bg-white rounded-lg p-1 w-fit shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex gap-1 border border-[#e5e5e5] bg-white rounded-lg p-1 w-fit shadow-sm">
+                <button
+                  onClick={() => setView("tables")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${view === "tables" ? "bg-[#111111] text-white" : "text-neutral-500 hover:text-black"}`}
+                >
+                  Tables
+                </button>
+                <button
+                  onClick={() => setView("diagram")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${view === "diagram" ? "bg-[#111111] text-white" : "text-neutral-500 hover:text-black"}`}
+                >
+                  Diagram
+                </button>
+              </div>
+
               <button
-                onClick={() => setView("tables")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${view === "tables" ? "bg-[#111111] text-white" : "text-neutral-500 hover:text-black"}`}
+                onClick={() => downloadText("schema.sql", buildFullSchemaSql(response))}
+                className="text-xs font-medium text-neutral-600 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
               >
-                Tables
-              </button>
-              <button
-                onClick={() => setView("diagram")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${view === "diagram" ? "bg-[#111111] text-white" : "text-neutral-500 hover:text-black"}`}
-              >
-                Diagram
+                Download all
               </button>
             </div>
 
             {view === "diagram" ? (
               <SchemaDiagram tables={response.tables} />
             ) : (
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            <div className="w-full lg:w-56 border border-[#e5e5e5] bg-white rounded-lg p-3 flex flex-col gap-1 shrink-0 shadow-sm">
-              <span className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider px-2 pb-2 border-b border-[#e5e5e5] mb-1.5">Schema Tables</span>
-              {response.tables.map((table, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelectedTableIndex(i)}
-                  className={`w-full text-left px-3 py-2 rounded-md text-xs font-sans transition-all flex items-center justify-between border ${selectedTableIndex === i ? "bg-[#5E6AD2]/5 text-[#5E6AD2] border-[#5E6AD2]/25 font-semibold" : "bg-transparent hover:bg-neutral-50 border-transparent text-neutral-500"}`}
-                >
-                  <span className="truncate">{table.table_name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${selectedTableIndex === i ? "bg-[#5E6AD2]/10 text-[#5E6AD2]" : "bg-[#f4f5f6] text-neutral-400"}`}>
-                    {table.columns.length}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {selectedTable && (
-              <div className="flex-1 w-full flex flex-col gap-6">
-                <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
-                  <h2 className="font-display text-lg font-semibold text-[#111111] flex items-center gap-1.5">
-                    <span className="text-neutral-400 font-normal">table:</span> {selectedTable.table_name}
-                  </h2>
-
-                  <div className="overflow-x-auto border border-[#e5e5e5] bg-[#F4F5F6]/30 rounded-md">
-                    <table className="w-full text-left border-collapse font-sans text-xs">
-                      <thead>
-                        <tr className="border-b border-[#e5e5e5] text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
-                          <th className="px-4 py-2.5">Column</th>
-                          <th className="px-4 py-2.5">Type</th>
-                          <th className="px-4 py-2.5">Constraints</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#e5e5e5]/80 text-[11px] text-neutral-700 font-mono">
-                        {selectedTable.columns.map((col, idx) => (
-                          <tr key={idx} className="hover:bg-neutral-50">
-                            <td className="px-4 py-2.5 font-sans font-semibold text-neutral-800">{col.name}</td>
-                            <td className="px-4 py-2.5 text-indigo-600 font-semibold">{col.type}</td>
-                            <td className="px-4 py-2.5">
-                              {col.constraints.length > 0 ? (
-                                <div className="flex flex-wrap gap-1 font-sans">
-                                  {col.constraints.map((c, cIdx) => (
-                                    <span key={cIdx} className="bg-white border border-[#e5e5e5] text-neutral-400 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase">{c}</span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-neutral-400 font-sans">-</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                <div className="w-full lg:w-56 border border-[#e5e5e5] bg-white rounded-lg p-3 flex flex-col gap-1 shrink-0 shadow-sm">
+                  <span className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider px-2 pb-2 border-b border-[#e5e5e5] mb-1.5">Schema Tables</span>
+                  {response.tables.map((table, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedTableIndex(i)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-xs font-sans transition-all flex items-center justify-between border ${selectedTableIndex === i ? "bg-[#5E6AD2]/5 text-[#5E6AD2] border-[#5E6AD2]/25 font-semibold" : "bg-transparent hover:bg-neutral-50 border-transparent text-neutral-500"}`}
+                    >
+                      <span className="truncate">{table.table_name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${selectedTableIndex === i ? "bg-[#5E6AD2]/10 text-[#5E6AD2]" : "bg-[#f4f5f6] text-neutral-400"}`}>
+                        {table.columns.length}
+                      </span>
+                    </button>
+                  ))}
                 </div>
 
-                {selectedTable.create_table_sql && (
-                  <SqlPanel label="Schema Query (DDL)" sql={selectedTable.create_table_sql} copyKey="schema" copySuccess={copySuccess} onCopy={handleCopy} filename={`${selectedTable.table_name}_schema.sql`} />
-                )}
-                {selectedTable.inserts_sql && (
-                  <SqlPanel label="Seed Rows (DML)" sql={selectedTable.inserts_sql} copyKey="inserts" copySuccess={copySuccess} onCopy={handleCopy} wrap filename={`${selectedTable.table_name}_seed.sql`} />
+                {selectedTable && (
+                  <div className="flex-1 w-full flex flex-col gap-6">
+                    <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
+                      <h2 className="font-display text-lg font-semibold text-[#111111] flex items-center gap-1.5">
+                        <span className="text-neutral-400 font-normal">table:</span> {selectedTable.table_name}
+                      </h2>
+
+                      <div className="overflow-x-auto border border-[#e5e5e5] bg-[#F4F5F6]/30 rounded-md">
+                        <table className="w-full text-left border-collapse font-sans text-xs">
+                          <thead>
+                            <tr className="border-b border-[#e5e5e5] text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
+                              <th className="px-4 py-2.5">Column</th>
+                              <th className="px-4 py-2.5">Type</th>
+                              <th className="px-4 py-2.5">Constraints</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e5e5]/80 text-[11px] text-neutral-700 font-mono">
+                            {selectedTable.columns.map((col, idx) => (
+                              <tr key={idx} className="hover:bg-neutral-50">
+                                <td className="px-4 py-2.5 font-sans font-semibold text-neutral-800">{col.name}</td>
+                                <td className="px-4 py-2.5 text-indigo-600 font-semibold">{col.type}</td>
+                                <td className="px-4 py-2.5">
+                                  {col.constraints.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 font-sans">
+                                      {col.constraints.map((c, cIdx) => (
+                                        <span key={cIdx} className="bg-white border border-[#e5e5e5] text-neutral-400 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase">{c}</span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-neutral-400 font-sans">-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {selectedTable.create_table_sql && (
+                      <SqlPanel label="Schema Query (DDL)" sql={selectedTable.create_table_sql} copyKey="schema" copySuccess={copySuccess} onCopy={handleCopy} filename={`${selectedTable.table_name}_schema.sql`} />
+                    )}
+                    {selectedTable.inserts_sql && (
+                      <SqlPanel label="Seed Rows (DML)" sql={selectedTable.inserts_sql} copyKey="inserts" copySuccess={copySuccess} onCopy={handleCopy} wrap filename={`${selectedTable.table_name}_seed.sql`} />
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
             )}
           </div>
         )}
