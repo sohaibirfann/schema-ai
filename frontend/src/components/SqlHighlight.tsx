@@ -24,14 +24,14 @@ export function SqlHighlight({ sql }: { sql: string }) {
     if (m.index > last) nodes.push(sql.slice(last, m.index));
     const [full, comment, str, num, word] = m;
 
-    if (comment) nodes.push(<span key={i} className="text-neutral-400 italic">{full}</span>);
-    else if (str) nodes.push(<span key={i} className="text-emerald-600">{full}</span>);
-    else if (num) nodes.push(<span key={i} className="text-amber-600">{full}</span>);
+    if (comment) nodes.push(<span key={i} className="text-code-muted italic">{full}</span>);
+    else if (str) nodes.push(<span key={i} className="text-code-type">{full}</span>);
+    else if (num) nodes.push(<span key={i} className="text-code-type">{full}</span>);
     else if (word) {
       const up = word.toUpperCase();
-      if (KEYWORDS.has(up)) nodes.push(<span key={i} className="text-violet-600 font-semibold">{full}</span>);
-      else if (TYPES.has(up)) nodes.push(<span key={i} className="text-indigo-600">{full}</span>);
-      else nodes.push(full);
+      if (KEYWORDS.has(up)) nodes.push(<span key={i} className="text-code-keyword">{full}</span>);
+      else if (TYPES.has(up)) nodes.push(<span key={i} className="text-code-type">{full}</span>);
+      else nodes.push(<span key={i} className="text-code-text">{full}</span>);
     }
 
     last = m.index + full.length;

@@ -7,17 +7,10 @@ import { WarmUpPing } from "@/components/WarmUpPing";
 import { PromptForm } from "@/components/PromptForm";
 import { EmptyState, LoadingState, WakingState, ErrorState } from "@/components/ResultStates";
 import { SchemaDiagram } from "@/components/SchemaDiagram";
-import { SqlHighlight } from "@/components/SqlHighlight";
+import { TablesView } from "@/components/TablesView";
+import { downloadText } from "@/lib/download";
 import type { SQLSchemaResponse, Dialect } from "@/types/schema";
 import { DIALECTS } from "@/types/schema";
-
-function downloadText(filename: string, content: string) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 function buildFullSchemaSql(response: SQLSchemaResponse): string {
   const ddl = response.tables.map(t => t.create_table_sql).filter(Boolean).join("\n\n");
@@ -119,41 +112,6 @@ function HistoryDrawer({ open, history, activeId, onLoad, onDelete, onClear, onC
   );
 }
 
-function SqlPanel({ label, sql, copyKey, copySuccess, onCopy, wrap, filename }: {
-  label: string;
-  sql: string;
-  copyKey: string;
-  copySuccess: string | null;
-  onCopy: (key: string, text: string) => void;
-  wrap?: boolean;
-  filename: string;
-}) {
-  return (
-    <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
-        <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">{label}</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => downloadText(filename, sql)}
-            className="text-[11px] font-medium text-neutral-500 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-          >
-            Download
-          </button>
-          <button
-            onClick={() => onCopy(copyKey, sql)}
-            className="text-[11px] font-medium text-neutral-500 hover:text-black bg-white border border-[#e5e5e5] hover:bg-neutral-50 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-          >
-            {copySuccess === copyKey ? "Copied!" : `Copy ${copyKey === "schema" ? "DDL" : "Seed SQL"}`}
-          </button>
-        </div>
-      </div>
-      <pre className={`bg-[#fafbfb] border border-[#e5e5e5] rounded-md p-4 font-mono text-xs text-neutral-600 overflow-x-auto ${wrap ? "whitespace-pre-wrap leading-relaxed" : "whitespace-pre"}`}>
-        <SqlHighlight sql={sql} />
-      </pre>
-    </div>
-  );
-}
-
 export default function GeneratorPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -237,7 +195,6 @@ export default function GeneratorPage() {
     setTimeout(() => setCopySuccess(null), 2000);
   }
 
-  const selectedTable = response?.tables?.[selectedTableIndex];
   const fkCount = response ? response.tables.reduce((n, t) => n + t.columns.filter(c => c.references).length, 0) : 0;
 
   return (
@@ -312,71 +269,13 @@ export default function GeneratorPage() {
             {view === "diagram" ? (
               <SchemaDiagram tables={response.tables} />
             ) : (
-              <div className="flex flex-col lg:flex-row gap-6 items-start">
-                <div className="w-full lg:w-56 border border-[#e5e5e5] bg-white rounded-lg p-3 flex flex-col gap-1 shrink-0 shadow-sm">
-                  <span className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider px-2 pb-2 border-b border-[#e5e5e5] mb-1.5">Schema Tables</span>
-                  {response.tables.map((table, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedTableIndex(i)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-xs font-sans transition-all flex items-center justify-between border ${selectedTableIndex === i ? "bg-[#5E6AD2]/5 text-[#5E6AD2] border-[#5E6AD2]/25 font-semibold" : "bg-transparent hover:bg-neutral-50 border-transparent text-neutral-500"}`}
-                    >
-                      <span className="truncate">{table.table_name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${selectedTableIndex === i ? "bg-[#5E6AD2]/10 text-[#5E6AD2]" : "bg-[#f4f5f6] text-neutral-400"}`}>
-                        {table.columns.length}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {selectedTable && (
-                  <div className="flex-1 w-full flex flex-col gap-6">
-                    <div className="border border-[#e5e5e5] bg-white rounded-lg p-5 flex flex-col gap-4 shadow-sm">
-                      <h2 className="font-display text-lg font-semibold text-[#111111] flex items-center gap-1.5">
-                        <span className="text-neutral-400 font-normal">table:</span> {selectedTable.table_name}
-                      </h2>
-
-                      <div className="overflow-x-auto border border-[#e5e5e5] bg-[#F4F5F6]/30 rounded-md">
-                        <table className="w-full text-left border-collapse font-sans text-xs">
-                          <thead>
-                            <tr className="border-b border-[#e5e5e5] text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
-                              <th className="px-4 py-2.5">Column</th>
-                              <th className="px-4 py-2.5">Type</th>
-                              <th className="px-4 py-2.5">Constraints</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#e5e5e5]/80 text-[11px] text-neutral-700 font-mono">
-                            {selectedTable.columns.map((col, idx) => (
-                              <tr key={idx} className="hover:bg-neutral-50">
-                                <td className="px-4 py-2.5 font-sans font-semibold text-neutral-800">{col.name}</td>
-                                <td className="px-4 py-2.5 text-indigo-600 font-semibold">{col.type}</td>
-                                <td className="px-4 py-2.5">
-                                  {col.constraints.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1 font-sans">
-                                      {col.constraints.map((c, cIdx) => (
-                                        <span key={cIdx} className="bg-white border border-[#e5e5e5] text-neutral-400 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase">{c}</span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className="text-neutral-400 font-sans">-</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {selectedTable.create_table_sql && (
-                      <SqlPanel label="Schema Query (DDL)" sql={selectedTable.create_table_sql} copyKey="schema" copySuccess={copySuccess} onCopy={handleCopy} filename={`${selectedTable.table_name}_schema.sql`} />
-                    )}
-                    {selectedTable.inserts_sql && (
-                      <SqlPanel label="Seed Rows (DML)" sql={selectedTable.inserts_sql} copyKey="inserts" copySuccess={copySuccess} onCopy={handleCopy} wrap filename={`${selectedTable.table_name}_seed.sql`} />
-                    )}
-                  </div>
-                )}
-              </div>
+              <TablesView
+                tables={response.tables}
+                selectedIndex={selectedTableIndex}
+                onSelect={setSelectedTableIndex}
+                copySuccess={copySuccess}
+                onCopy={handleCopy}
+              />
             )}
           </div>
         </>
