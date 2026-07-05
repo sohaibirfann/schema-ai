@@ -5,7 +5,7 @@ os.environ["GROQ_API_KEY"] = "mock_key"
 
 import httpx
 from fastapi import HTTPException
-from models.schema import Column, SQLSchemaResponse, TableSchema
+from models.schema import Column, Reference, SQLSchemaResponse, TableSchema
 from services.ai_service import generate_schema_from_ai
 from services.sql_generator import populate_sql_statements
 
@@ -84,6 +84,19 @@ def test_populate_rejects_duplicate_column_names():
         assert False, "expected HTTPException"
     except HTTPException as e:
         assert e.status_code == 422
+
+def test_populate_rejects_dangling_fk_reference():
+    orders = TableSchema(table_name="orders", columns=[
+        Column(name="id", type="INTEGER"),
+        Column(name="user_id", type="INTEGER", references=Reference(table="userss", column="id")),
+    ])
+    schema = SQLSchemaResponse(tables=[make_table("users", ["id"]), orders])
+    try:
+        populate_sql_statements(schema)
+        assert False, "expected HTTPException"
+    except HTTPException as e:
+        assert e.status_code == 422
+        assert "userss" in e.detail
 
 def test_autoincrement_renders_per_dialect():
     def schema():

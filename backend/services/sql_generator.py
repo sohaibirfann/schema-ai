@@ -20,6 +20,13 @@ def validate_schema(schema_response: SQLSchemaResponse) -> None:
         if dupe_cols:
             raise HTTPException(status_code=422, detail=f"Table '{table.table_name}' has duplicate column name(s): {', '.join(sorted(dupe_cols))}")
 
+    columns_by_table = {t.table_name: {c.name for c in t.columns} for t in schema_response.tables}
+    for table in schema_response.tables:
+        for col in table.columns:
+            ref = col.references
+            if ref and ref.column not in columns_by_table.get(ref.table, set()):
+                raise HTTPException(status_code=422, detail=f"Column '{table.table_name}.{col.name}' references unknown column '{ref.table}.{ref.column}'")
+
 def generate_create_table_sql(table: TableSchema, dialect: str = "postgres") -> str:
     lines = []
     for col in table.columns:
