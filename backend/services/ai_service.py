@@ -23,6 +23,9 @@ async def generate_schema_from_ai(description: str) -> SQLSchemaResponse:
         "For any column that is a foreign key, set its `references` field to the referenced table and column name. "
         "For an integer primary key that auto-increments (a surrogate id), set that column's `auto_increment` field to true. "
         "Use standard, dialect-neutral SQL data types (e.g. INTEGER, VARCHAR(255), TEXT, BOOLEAN, TIMESTAMP). "
+        "For every table, fill its `seed_inserts` field with 3 to 5 realistic sample rows as complete INSERT statements "
+        "(e.g. \"INSERT INTO users (id, username) VALUES (1, 'ada_lovelace');\"). Keep foreign-key values consistent with "
+        "the ids used in the referenced table's seed rows so the sample data is valid. "
         "Do not include any explanation, markdown formatting, or text outside the JSON object."
     )
     
