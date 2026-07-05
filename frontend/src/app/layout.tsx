@@ -1,25 +1,21 @@
 import type { Metadata } from "next";
-import { Outfit, Inter, Fira_Code } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const outfit = Outfit({
-  variable: "--font-outfit",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
-});
-
-const firaCode = Fira_Code({
-  variable: "--font-fira-code",
-  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "SchemaAI — Instant Database Blueprint Generator",
-  description: "Generate strict, structured SQL schemas and seed data instantly from natural language.",
+  title: "EasySchema — Describe it, we draw the database",
+  description: "Plain-English specs become validated tables, foreign keys, seed inserts and a live ER diagram — exportable in three SQL dialects.",
 };
 
 export default function RootLayout({
@@ -29,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className={`${outfit.variable} ${inter.variable} ${firaCode.variable} font-sans bg-[#F4F5F6] text-[#111111] min-h-full flex flex-col`}>
+      <body className={`${spaceGrotesk.variable} ${plexMono.variable} font-sans bg-background text-ink min-h-full flex flex-col`}>
         {children}
       </body>
     </html>
