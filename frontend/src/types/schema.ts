@@ -24,6 +24,13 @@ export interface SQLSchemaResponse {
 
 export type Dialect = "postgres" | "mysql" | "sqlite";
 
+export interface HistoryEntry {
+  id: number;
+  prompt: string;
+  response: SQLSchemaResponse;
+  dialect: Dialect;
+}
+
 export const DIALECTS: { value: Dialect; label: string }[] = [
   { value: "postgres", label: "PostgreSQL" },
   { value: "mysql", label: "MySQL" },
