@@ -32,3 +32,11 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+@keyframes es-type { 0% { width: 0 } 20% { width: 46ch } 90% { width: 46ch } 96%, 100% { width: 0 } }
+@keyframes es-caret { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+@keyframes es-pop { 0%, 22% { opacity: 0; transform: translateY(6px) } 28% { opacity: 1; transform: translateY(0) } 90% { opacity: 1 } 96%, 100% { opacity: 0 } }
+@keyframes es-line { 0%, 34% { opacity: 0 } 40% { opacity: 1 } 90% { opacity: 1 } 96%, 100% { opacity: 0 } }
+@keyframes es-draw { 0% { stroke-dashoffset: 340 } 45% { stroke-dashoffset: 0 } 100% { stroke-dashoffset: 0 } }
+@keyframes es-dot { 0%, 44% { opacity: 0 } 52% { opacity: 1 } 100% { opacity: 1 } }
+@keyframes es-spin { to { transform: rotate(360deg) } }
